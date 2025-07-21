@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>บอร์ดข้อความสาธารณะ (แชร์ได้)</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Sarabun -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Sarabun', sans-serif;
+        }
+        /* Style for the toast notification */
+        #toast {
+            transition: opacity 0.5s, transform 0.5s;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+
+    <!-- Main Container -->
+    <div class="container mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-blue-600 dark:text-blue-400">บอร์ดข้อความสาธารณะ</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">โพสต์ข้อความเพื่อให้ทุกคนเห็นได้ทันที</p>
+            <div class="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                <span>ID บอร์ด: </span><span id="board-id-display" class="font-mono bg-gray-200 dark:bg-gray-700 p-1 rounded"></span>
+            </div>
+        </header>
+
+        <!-- Message Submission Form -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg mb-8">
+            <form id="message-form">
+                <label for="message-input" class="block text-lg font-semibold mb-2">ข้อความของคุณ:</label>
+                <textarea id="message-input" rows="4" class="w-full p-3 bg-gray-100 dark:bg-gray-700 border-2 border-transparent focus:border-blue-500 focus:ring-0 rounded-lg transition" placeholder="พิมพ์ข้อความที่นี่..."></textarea>
+                <button type="submit" id="post-button" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800">
+                    โพสต์ข้อความ
+                </button>
+            </form>
+        </div>
+
+        <!-- Messages Display Area -->
+        <div id="messages-container" class="space-y-4">
+            <!-- Loading message -->
+            <div id="loading-state" class="text-center py-10">
+                <p class="text-gray-500 dark:text-gray-400">กำลังโหลดข้อความ...</p>
+            </div>
+            <!-- Messages will be dynamically inserted here -->
+        </div>
+
+    </div>
+
+    <!-- Toast Notification for Copy Action -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 transform translate-y-10">
+        คัดลอกข้อความแล้ว!
+    </div>
+    
+    <!-- Firebase and App Logic -->
+    <script type="module">
+        // Import necessary functions from Firebase SDK
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Configuration ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // ==================================================================
+        // ===                    สำคัญ! ตั้งค่าตรงนี้                    ===
+        // ==================================================================
+        // เพื่อให้ทุกคนเห็นข้อความเดียวกัน ทุกคนต้องใช้ "boardId" เดียวกัน
+        // คุณสามารถเปลี่ยน 'my-shared-board-123' เป็นชื่ออะไรก็ได้ที่คุณต้องการ
+        // จากนั้น บันทึกไฟล์ HTML นี้และส่งให้เพื่อนของคุณ ทุกคนจะเชื่อมต่อกับบอร์ดเดียวกัน
+        const SHARED_BOARD_ID = 'my-shared-board-123'; 
+        // ==================================================================
+
+        // The app will use the environment's ID if available (like in Preview), 
+        // otherwise it will use your shared ID.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : SHARED_BOARD_ID;
+
+
+        let db, auth;
+        let currentUserId = null;
+        let messagesUnsubscribe = null; 
+
+        // --- DOM Elements ---
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        const messagesContainer = document.getElementById('messages-container');
+        const loadingState = document.getElementById('loading-state');
+        const toast = document.getElementById('toast');
+        const boardIdDisplay = document.getElementById('board-id-display');
+
+        // --- Main Application Logic ---
+        async function main() {
+            // Display the board ID on the page
+            boardIdDisplay.textContent = appId;
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        listenForMessages();
+                    } else {
+                        await authenticateUser();
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                loadingState.textContent = "เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์";
+            }
+        }
+
+        async function authenticateUser() {
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Authentication failed:", error);
+                loadingState.textContent = "ไม่สามารถยืนยันตัวตนได้";
+            }
+        }
+
+        function listenForMessages() {
+            if (messagesUnsubscribe) messagesUnsubscribe();
+            
+            const messagesCollectionPath = `/artifacts/${appId}/public/data/messages`;
+            const q = query(collection(db, messagesCollectionPath));
+
+            messagesUnsubscribe = onSnapshot(q, (querySnapshot) => {
+                loadingState.style.display = 'none';
+                const messages = [];
+                querySnapshot.forEach((doc) => {
+                    messages.push({ id: doc.id, ...doc.data() });
+                });
+
+                messages.sort((a, b) => {
+                    const timeA = a.timestamp?.toMillis() || 0;
+                    const timeB = b.timestamp?.toMillis() || 0;
+                    return timeB - timeA;
+                });
+
+                renderMessages(messages);
+            }, (error) => {
+                console.error("Error listening to messages:", error);
+                messagesContainer.innerHTML = `<p class="text-center text-red-500">ไม่สามารถโหลดข้อความได้</p>`;
+            });
+        }
+
+        async function postMessage(text) {
+            if (!text.trim()) return;
+
+            try {
+                const messagesCollectionPath = `/artifacts/${appId}/public/data/messages`;
+                await addDoc(collection(db, messagesCollectionPath), {
+                    text: text,
+                    timestamp: serverTimestamp(),
+                    authorId: currentUserId
+                });
+                messageInput.value = '';
+            } catch (error) {
+                console.error("Error posting message: ", error);
+                alert("เกิดข้อผิดพลาดในการส่งข้อความ");
+            }
+        }
+
+        function renderMessages(messages) {
+            messagesContainer.innerHTML = '';
+            if (messages.length === 0) {
+                messagesContainer.innerHTML = `<p class="text-center text-gray-500 dark:text-gray-400">ยังไม่มีข้อความ ลองโพสต์เป็นคนแรกสิ!</p>`;
+                return;
+            }
+
+            messages.forEach(msg => {
+                const messageElement = createMessageElement(msg);
+                messagesContainer.appendChild(messageElement);
+            });
+        }
+
+        function createMessageElement(msg) {
+            const div = document.createElement('div');
+            div.className = 'bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4';
+
+            const textContent = document.createElement('p');
+            textContent.className = 'text-gray-800 dark:text-gray-200 whitespace-pre-wrap flex-1';
+            textContent.textContent = msg.text;
+            
+            const metaContainer = document.createElement('div');
+            metaContainer.className = 'flex items-center gap-4 w-full sm:w-auto';
+
+            const timestamp = document.createElement('span');
+            timestamp.className = 'text-xs text-gray-500 dark:text-gray-400';
+            timestamp.textContent = msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleString('th-TH') : 'กำลังส่ง...';
+
+            const copyButton = document.createElement('button');
+            copyButton.className = 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-sm font-semibold py-1 px-3 rounded-full transition';
+            copyButton.textContent = 'คัดลอก';
+            copyButton.onclick = () => copyTextToClipboard(msg.text, copyButton);
+
+            metaContainer.appendChild(timestamp);
+            metaContainer.appendChild(copyButton);
+
+            div.appendChild(textContent);
+            div.appendChild(metaContainer);
+
+            return div;
+        }
+
+        messageForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            postMessage(messageInput.value);
+        });
+
+        function copyTextToClipboard(text, button) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast();
+                button.textContent = 'คัดลอกแล้ว!';
+                setTimeout(() => {
+                    button.textContent = 'คัดลอก';
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function showToast() {
+            toast.classList.remove('opacity-0', 'translate-y-10');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-10');
+            }, 2000);
+        }
+
+        main();
+    </script>
+</body>
+</html>
