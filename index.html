@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>บอร์ดข้อความสาธารณะ (แชร์ได้)</title>
+    <title>บอร์ดข้อความสาธารณะ</title>
+    
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Sarabun -->
+    
+    <!-- Google Fonts: Sarabun (for Thai language) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+    
     <style>
-        /* Custom styles */
+        /* Custom styles to apply the font and transitions */
         body {
             font-family: 'Sarabun', sans-serif;
         }
-        /* Style for the toast notification */
         #toast {
             transition: opacity 0.5s, transform 0.5s;
         }
@@ -30,7 +32,7 @@
             <h1 class="text-3xl sm:text-4xl font-bold text-blue-600 dark:text-blue-400">บอร์ดข้อความสาธารณะ</h1>
             <p class="text-gray-600 dark:text-gray-400 mt-2">โพสต์ข้อความเพื่อให้ทุกคนเห็นได้ทันที</p>
             <div class="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                <span>ID บอร์ด: </span><span id="board-id-display" class="font-mono bg-gray-200 dark:bg-gray-700 p-1 rounded"></span>
+                <span>ID บอร์ด: </span><span id="board-id-display" class="font-mono bg-gray-200 dark:bg-gray-700 py-1 px-2 rounded"></span>
             </div>
         </header>
 
@@ -49,7 +51,14 @@
         <div id="messages-container" class="space-y-4">
             <!-- Loading message -->
             <div id="loading-state" class="text-center py-10">
-                <p class="text-gray-500 dark:text-gray-400">กำลังโหลดข้อความ...</p>
+                <div role="status" class="flex justify-center items-center">
+                    <svg aria-hidden="true" class="w-8 h-8 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                        <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0492C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                    </svg>
+                    <span class="sr-only">Loading...</span>
+                </div>
+                <p class="text-gray-500 dark:text-gray-400 mt-2">กำลังโหลดข้อความ...</p>
             </div>
             <!-- Messages will be dynamically inserted here -->
         </div>
@@ -65,12 +74,21 @@
     <script type="module">
         // Import necessary functions from Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Firebase Configuration ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // This configuration is a placeholder. 
+        // In a real production environment, you would get this from your Firebase project settings.
+        // For this collaborative tool, a generic config is provided.
+        const firebaseConfig = {
+            apiKey: "AIzaSyC...THIS_IS_A_PLACEHOLDER...SyAI", // This is a public placeholder
+            authDomain: "project-id.firebaseapp.com",
+            projectId: "fir-public-for-demos", // Using a public demo project
+            storageBucket: "project-id.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:abcdef1234567890"
+        };
         
         // ==================================================================
         // ===                    สำคัญ! ตั้งค่าตรงนี้                    ===
@@ -81,10 +99,8 @@
         const SHARED_BOARD_ID = 'my-shared-board-123'; 
         // ==================================================================
 
-        // The app will use the environment's ID if available (like in Preview), 
-        // otherwise it will use your shared ID.
-        const appId = typeof __app_id !== 'undefined' ? __app_id : SHARED_BOARD_ID;
-
+        // The app will use the shared ID you defined above.
+        const appId = SHARED_BOARD_ID;
 
         let db, auth;
         let currentUserId = null;
@@ -100,7 +116,6 @@
 
         // --- Main Application Logic ---
         async function main() {
-            // Display the board ID on the page
             boardIdDisplay.textContent = appId;
 
             try {
@@ -108,12 +123,15 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
 
-                onAuthStateChanged(auth, async (user) => {
+                onAuthStateChanged(auth, (user) => {
                     if (user) {
                         currentUserId = user.uid;
                         listenForMessages();
                     } else {
-                        await authenticateUser();
+                        signInAnonymously(auth).catch(error => {
+                            console.error("Anonymous sign-in failed:", error);
+                            loadingState.textContent = "ไม่สามารถยืนยันตัวตนได้";
+                        });
                     }
                 });
 
@@ -123,22 +141,11 @@
             }
         }
 
-        async function authenticateUser() {
-            try {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Authentication failed:", error);
-                loadingState.textContent = "ไม่สามารถยืนยันตัวตนได้";
-            }
-        }
-
+        // --- Firestore Functions ---
         function listenForMessages() {
             if (messagesUnsubscribe) messagesUnsubscribe();
             
+            // Path for public data in Firestore
             const messagesCollectionPath = `/artifacts/${appId}/public/data/messages`;
             const q = query(collection(db, messagesCollectionPath));
 
@@ -149,6 +156,7 @@
                     messages.push({ id: doc.id, ...doc.data() });
                 });
 
+                // Sort messages by timestamp, newest first.
                 messages.sort((a, b) => {
                     const timeA = a.timestamp?.toMillis() || 0;
                     const timeB = b.timestamp?.toMillis() || 0;
@@ -163,7 +171,7 @@
         }
 
         async function postMessage(text) {
-            if (!text.trim()) return;
+            if (!text.trim() || !currentUserId) return;
 
             try {
                 const messagesCollectionPath = `/artifacts/${appId}/public/data/messages`;
@@ -175,10 +183,12 @@
                 messageInput.value = '';
             } catch (error) {
                 console.error("Error posting message: ", error);
-                alert("เกิดข้อผิดพลาดในการส่งข้อความ");
+                // Use a custom modal or a less intrusive notification in a real app
+                alert("เกิดข้อผิดพลาดในการส่งข้อความ"); 
             }
         }
 
+        // --- UI Rendering ---
         function renderMessages(messages) {
             messagesContainer.innerHTML = '';
             if (messages.length === 0) {
@@ -194,14 +204,14 @@
 
         function createMessageElement(msg) {
             const div = document.createElement('div');
-            div.className = 'bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4';
+            div.className = 'bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in';
 
             const textContent = document.createElement('p');
-            textContent.className = 'text-gray-800 dark:text-gray-200 whitespace-pre-wrap flex-1';
+            textContent.className = 'text-gray-800 dark:text-gray-200 whitespace-pre-wrap flex-1 break-words';
             textContent.textContent = msg.text;
             
             const metaContainer = document.createElement('div');
-            metaContainer.className = 'flex items-center gap-4 w-full sm:w-auto';
+            metaContainer.className = 'flex items-center gap-4 w-full sm:w-auto flex-shrink-0';
 
             const timestamp = document.createElement('span');
             timestamp.className = 'text-xs text-gray-500 dark:text-gray-400';
@@ -221,6 +231,7 @@
             return div;
         }
 
+        // --- Event Handlers ---
         messageForm.addEventListener('submit', (e) => {
             e.preventDefault();
             postMessage(messageInput.value);
@@ -255,7 +266,9 @@
             }, 2000);
         }
 
+        // --- Start the app ---
         main();
+
     </script>
 </body>
 </html>
