@@ -11,28 +11,51 @@
   <style>
     body {
       font-family: 'Sarabun', sans-serif;
+      background: linear-gradient(135deg, #0f2027 0%, #232a3b 100%);
+      min-height: 100vh;
     }
     #toast {
       transition: opacity 0.5s, transform 0.5s;
+      box-shadow: 0 0 24px 4px #22d3ee;
+      background: linear-gradient(90deg, #0ea5e9 0%, #38bdf8 100%);
+      color: #fff;
+    }
+    .hi-tech-glow {
+      text-shadow: 0 0 8px #38bdf8, 0 0 16px #0ea5e9;
+    }
+    .fade-in {
+      animation: fadeIn 0.7s cubic-bezier(0.4,0,0.2,1);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(30px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
+    .gradient-border {
+      border: 2px solid #38bdf8;
+      border-radius: 1rem;
+      background: linear-gradient(120deg, #232a3b 80%, #0ea5e9 100%) padding-box,
+                  linear-gradient(90deg, #38bdf8, #0ea5e9, #818cf8) border-box;
     }
   </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
 
   <div class="container mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
-    <header class="text-center mb-8">
-      <h1 class="text-3xl sm:text-4xl font-bold text-blue-600 dark:text-blue-400">บอร์ดข้อความสาธารณะ</h1>
-      <p class="text-gray-600 dark:text-gray-400 mt-2">โพสต์ข้อความเพื่อให้ทุกคนเห็นได้ทันที</p>
-      <div class="mt-4 text-sm text-gray-500 dark:text-gray-400">
-        <span>ID บอร์ด: </span><span id="board-id-display" class="font-mono bg-gray-200 dark:bg-gray-700 p-1 rounded"></span>
+    <header class="text-center mb-8 py-8 rounded-2xl shadow-xl bg-gradient-to-r from-cyan-700 via-blue-900 to-indigo-900">
+      <h1 class="text-3xl sm:text-4xl font-bold text-blue-300 hi-tech-glow">บอร์ดข้อความสาธารณะ</h1>
+      <p class="text-gray-200 mt-2">โพสต์ข้อความเพื่อให้ทุกคนเห็นได้ทันที</p>
+      <div class="mt-4 text-sm text-cyan-200">
+        <span>ID บอร์ด: </span><span id="board-id-display" class="font-mono bg-gray-800 p-1 rounded shadow-inner"></span>
       </div>
     </header>
 
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg mb-8">
+    <div class="bg-[#181f2a] dark:bg-[#181f2a] p-6 rounded-2xl shadow-2xl mb-8 gradient-border">
       <form id="message-form">
-        <label for="message-input" class="block text-lg font-semibold mb-2">ข้อความของคุณ:</label>
-        <textarea id="message-input" rows="4" class="w-full p-3 bg-gray-100 dark:bg-gray-700 border-2 border-transparent focus:border-blue-500 focus:ring-0 rounded-lg transition" placeholder="พิมพ์ข้อความที่นี่..."></textarea>
-        <button type="submit" id="post-button" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800">
+        <label for="title-input" class="block text-lg font-semibold mb-2 text-cyan-400">หัวข้อ/ชื่อไฟล์:</label>
+        <input id="title-input" type="text" class="w-full p-3 mb-3 bg-[#232a3b] text-cyan-200 border border-cyan-700 focus:border-cyan-400 focus:ring-0 rounded-lg transition placeholder:text-cyan-700" placeholder="ใส่หัวข้อหรือชื่อไฟล์..." />
+        <label for="message-input" class="block text-lg font-semibold mb-2 text-cyan-400">ข้อความของคุณ:</label>
+        <textarea id="message-input" rows="4" class="w-full p-3 bg-[#232a3b] text-cyan-100 border border-cyan-700 focus:border-cyan-400 focus:ring-0 rounded-lg transition placeholder:text-cyan-700" placeholder="พิมพ์ข้อความที่นี่..."></textarea>
+        <button type="submit" id="post-button" class="mt-4 w-full bg-gradient-to-r from-cyan-500 to-blue-700 hover:from-blue-600 hover:to-cyan-400 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-400">
           โพสต์ข้อความ
         </button>
       </form>
@@ -73,6 +96,7 @@
 
     const messageForm = document.getElementById('message-form');
     const messageInput = document.getElementById('message-input');
+    const titleInput = document.getElementById('title-input');
     const messagesContainer = document.getElementById('messages-container');
     const loadingState = document.getElementById('loading-state');
     const toast = document.getElementById('toast');
@@ -127,17 +151,18 @@
       });
     }
 
-    async function postMessage(text) {
+    async function postMessage(text, title) {
       if (!text.trim()) return;
-
       try {
         const messagesCollectionPath = `/artifacts/${appId}/public/data/messages`;
         await addDoc(collection(db, messagesCollectionPath), {
           text: text,
+          title: title || '',
           timestamp: serverTimestamp(),
           authorId: currentUserId
         });
         messageInput.value = '';
+        titleInput.value = '';
       } catch (error) {
         console.error("Error posting message: ", error);
         alert("เกิดข้อผิดพลาดในการส่งข้อความ");
@@ -159,21 +184,29 @@
 
     function createMessageElement(msg) {
       const div = document.createElement('div');
-      div.className = 'bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4';
+      div.className = 'bg-[#181f2a] dark:bg-[#181f2a] p-5 rounded-xl shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 fade-in gradient-border transition-transform duration-300 hover:scale-105 hover:shadow-cyan-400/50 group';
+
+      // เพิ่มหัวข้อ
+      if (msg.title && msg.title.trim()) {
+        const titleElem = document.createElement('div');
+        titleElem.className = 'font-bold text-cyan-400 hi-tech-glow mb-1 w-full text-lg tracking-wide group-hover:text-blue-400 transition';
+        titleElem.textContent = msg.title;
+        div.appendChild(titleElem);
+      }
 
       const textContent = document.createElement('p');
-      textContent.className = 'text-gray-800 dark:text-gray-200 whitespace-pre-wrap flex-1';
+      textContent.className = 'text-cyan-100 whitespace-pre-wrap flex-1 text-base';
       textContent.textContent = msg.text;
 
       const metaContainer = document.createElement('div');
       metaContainer.className = 'flex items-center gap-4 w-full sm:w-auto';
 
       const timestamp = document.createElement('span');
-      timestamp.className = 'text-xs text-gray-500 dark:text-gray-400';
+      timestamp.className = 'text-xs text-cyan-500 font-mono';
       timestamp.textContent = msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleString('th-TH') : 'กำลังส่ง...';
 
       const copyButton = document.createElement('button');
-      copyButton.className = 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-sm font-semibold py-1 px-3 rounded-full transition';
+      copyButton.className = 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-blue-500 hover:to-cyan-400 text-white font-semibold py-1 px-4 rounded-full shadow-md transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-400 active:scale-95';
       copyButton.textContent = 'คัดลอก';
       copyButton.onclick = () => copyTextToClipboard(msg.text, copyButton);
 
@@ -188,7 +221,7 @@
 
     messageForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      postMessage(messageInput.value);
+      postMessage(messageInput.value, titleInput.value);
     });
 
     function copyTextToClipboard(text, button) {
